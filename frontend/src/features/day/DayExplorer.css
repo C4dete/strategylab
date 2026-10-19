@@ -1,0 +1,190 @@
+.dia-nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+}
+.dia-nav__sel {
+  width: auto;
+  min-width: 240px;
+  max-width: 100%;
+  font-size: var(--fs-sm);
+}
+.dia-nav__atalhos {
+  display: flex;
+  gap: var(--s-1);
+  margin-left: var(--s-2);
+}
+
+.chip {
+  height: 28px;
+  padding: 0 var(--s-3);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  transition: background-color var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+.chip:hover {
+  background: var(--surface-3);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.dia-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.dia-stats > div {
+  display: grid;
+  gap: 2px;
+  padding: var(--s-3) var(--s-5);
+  border-left: 1px solid var(--line);
+}
+.dia-stats > div:first-child {
+  border-left: 0;
+}
+.dia-stats dd {
+  margin: 0;
+}
+.dia-stats__v {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+}
+.dia-stats__s {
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+
+.dia-chart {
+  padding: var(--s-3) var(--s-3) 0;
+  min-height: 400px;
+}
+
+.aviso-erro {
+  padding: var(--s-4);
+  color: var(--loss);
+}
+
+/* tabela de operações */
+.tabela {
+  overflow-x: auto;
+  border-top: 1px solid var(--line);
+}
+.tabela table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+.tabela th,
+.tabela td {
+  padding: var(--s-2) var(--s-4);
+  text-align: left;
+  white-space: nowrap;
+}
+.tabela thead th {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+}
+.tabela tbody tr {
+  border-bottom: 1px solid var(--line);
+  transition: background-color var(--t-fast);
+}
+.tabela tbody tr:hover {
+  background: var(--surface-2);
+}
+.tabela tfoot th,
+.tabela tfoot td {
+  font-weight: 600;
+  background: var(--surface-2);
+}
+.tabela tfoot th {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.tabela .cn {
+  text-align: right;
+}
+
+.lado {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+.lado::before {
+  content: '';
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+}
+.lado--buy::before {
+  border-bottom: 8px solid var(--gain);
+}
+.lado--sell::before {
+  border-top: 8px solid var(--loss);
+}
+
+.badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: var(--r);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+.badge--gain {
+  color: var(--gain);
+  background: var(--gain-weak);
+}
+.badge--loss {
+  color: var(--loss);
+  background: var(--loss-weak);
+}
+.badge--neutro {
+  color: var(--text-2);
+  background: var(--surface-3);
+}
+.badge + .badge {
+  margin-left: var(--s-1);
+}
+
+@media (max-width: 760px) {
+  .dia-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dia-stats > div:nth-child(3) {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .dia-stats > div:nth-child(4) {
+    border-top: 1px solid var(--line);
+  }
+  .dia-nav__sel {
+    min-width: 0;
+    flex: 1;
+  }
+  .dia-nav__atalhos {
+    margin-left: 0;
+  }
+}
+
+.tabela .sub {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}

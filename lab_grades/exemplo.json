@@ -1,0 +1,16 @@
+{
+  "nome": "exemplo reversoes x stop",
+  "base": "inicial_default",
+  "variantes": [
+    {},
+    {"sair_ao_tocar_mm": true}
+  ],
+  "eixos": {
+    "reversoes": [0, 1, 2],
+    "stop_x_media": {"de": 0.5, "ate": 1.5, "passo": 0.5}
+  },
+  "corte_oos": "2025-01-01",
+  "ordenar_por": "ret_dd",
+  "top": 10,
+  "min_operacoes": 100
+}

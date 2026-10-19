@@ -1,0 +1,197 @@
+/* ------------------------------------------------------------- estrutura da página */
+.app {
+  display: grid;
+  grid-template-rows: var(--header-h) minmax(0, 1fr);
+  height: 100dvh;
+  min-height: 0;
+}
+
+.topo {
+  position: relative;
+  z-index: var(--z-header);
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  padding: 0 var(--s-4);
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--bg);
+}
+.topo__bd {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: flex-start;
+}
+.topo__acoes {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.topo__gaveta {
+  display: none;
+}
+
+.marca {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: none;
+}
+.marca__nome {
+  font-size: var(--fs-lg);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+.marca__nome b {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.tema {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--text-2);
+  transition: color var(--t-fast), border-color var(--t-fast), transform var(--t-med) var(--ease);
+}
+.tema:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.tema:active {
+  transform: rotate(25deg) scale(0.94);
+}
+
+.corpo {
+  display: grid;
+  grid-template-columns: var(--panel-w) minmax(0, 1fr);
+  min-height: 0;
+}
+.corpo__painel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  position: relative;
+}
+.corpo__painel > .painel {
+  flex: 1;
+  min-height: 0;
+}
+.corpo__cabeca,
+.corpo__vela {
+  display: none;
+}
+.corpo__principal {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--s-5) var(--s-6) var(--s-10);
+  scroll-behavior: smooth;
+}
+
+.falha-geral {
+  display: grid;
+  justify-items: center;
+  gap: var(--s-4);
+  max-width: 520px;
+  margin: 18vh auto 0;
+  padding: var(--s-5);
+  text-align: center;
+}
+.falha-geral p {
+  color: var(--text-2);
+}
+
+/* ------------------------------------------------------------- telas estreitas: o painel vira gaveta */
+@media (max-width: 1100px) {
+  .topo__gaveta {
+    display: inline-flex;
+  }
+  .corpo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .corpo__painel {
+    position: fixed;
+    z-index: var(--z-panel);
+    top: var(--header-h);
+    bottom: 0;
+    left: 0;
+    width: min(var(--panel-w), 92vw);
+    transform: translateX(-102%);
+    visibility: hidden;
+    transition: transform var(--t-med) var(--ease), visibility 0s linear var(--t-med);
+  }
+  .corpo__painel.is-aberta {
+    transform: none;
+    visibility: visible;
+    transition-delay: 0s;
+    box-shadow: 8px 0 30px rgb(0 0 0 / 0.4);
+  }
+  .corpo__cabeca {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--s-2) 0 var(--s-4);
+    min-height: 44px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .corpo__fechar {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: var(--r);
+    background: transparent;
+    color: var(--text-2);
+  }
+  .corpo__fechar:hover {
+    background: var(--surface-3);
+    color: var(--text);
+  }
+  .corpo__vela {
+    display: block;
+    position: fixed;
+    z-index: calc(var(--z-panel) - 1);
+    inset: var(--header-h) 0 0 0;
+    border: 0;
+    background: var(--overlay);
+  }
+  .corpo__principal {
+    padding: var(--s-4) var(--s-4) var(--s-8);
+  }
+}
+
+@media (max-width: 760px) {
+  .topo {
+    gap: var(--s-3);
+    padding: 0 var(--s-3);
+  }
+  .marca__nome {
+    display: none;
+  }
+}
+
+/* rótulos de botão que viram só ícone em telas estreitas */
+@media (max-width: 900px) {
+  .rot-lg {
+    display: none;
+  }
+  .topo .btn--sm {
+    padding: 0 var(--s-2);
+  }
+}
+@media (max-width: 560px) {
+  .rot-md {
+    display: none;
+  }
+  .topo {
+    gap: var(--s-2);
+  }
+}

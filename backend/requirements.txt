@@ -1,0 +1,8 @@
+fastapi>=0.110
+uvicorn>=0.29
+pandas>=2.1
+numpy>=1.26
+pydantic>=2.5
+python-multipart>=0.0.9
+httpx>=0.27          # TestClient (testes)
+pytest>=8.0          # testes

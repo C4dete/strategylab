@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "id": "retorno_alto_recuo_stop_3_alvo_0_5_rastrear_sair_mm",
+  "name": "Retorno alto (recuo, stop 3, alvo 0,5, Rastrear+Sair MM)",
+  "created_at": "2026-10-09T13:21:38-03:00",
+  "updated_at": "2026-10-09T13:21:38-03:00",
+  "params": {
+    "janela_inicio": "10:00",
+    "janela_fim": "17:30",
+    "ultima_entrada": "15:00",
+    "candles_gatilho": 8,
+    "candles_media": 10,
+    "bracket_fracao": 0.5,
+    "modo_entrada": "padrao",
+    "reversoes": 0,
+    "rev_stop_x_media": 0.0,
+    "rev_alvo_x_media": 0.0,
+    "book": "recuo",
+    "penetracao_ticks": 1,
+    "parar_apos_losses": 0,
+    "contagem_losses": "dia",
+    "operacoes_por_dia": 2,
+    "stop_x_media": 3.0,
+    "alvo_x_media": 0.5,
+    "mm_periodo": 30,
+    "bb_periodo": 15,
+    "bb_desvio": 2.0,
+    "filtro_afast_mm_ativo": false,
+    "filtro_afast_mm_x_media": 0.7,
+    "rastrear_mm": true,
+    "sair_ao_tocar_mm": true
+  }
+}

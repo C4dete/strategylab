@@ -1,0 +1,184 @@
+/* Quadro de resultados: um "demonstrativo" com filetes, não caixas arredondadas. */
+.kpis {
+  display: grid;
+  grid-template-columns: minmax(300px, 1.6fr) repeat(3, minmax(0, 1fr));
+  grid-template-rows: auto auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.kpi {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+  padding: var(--s-4) var(--s-5);
+  border-left: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+}
+
+.kpi--hero {
+  container-type: inline-size;
+  grid-row: span 2;
+  border-left: 0;
+  border-top: 0;
+  justify-content: space-between;
+  gap: var(--s-2);
+  background: var(--surface-2);
+}
+
+/* a primeira linha de cartões não leva filete no topo (o contêiner já tem borda) */
+.kpi:nth-child(2),
+.kpi:nth-child(3),
+.kpi:nth-child(4) {
+  border-top: 0;
+}
+
+.kpi__topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  min-height: 18px;
+}
+
+.kpi__valor {
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.kpi__hero {
+  /* ~8 caracteres de largura por em: o número nunca passa da coluna */
+  font-size: min(3.5rem, 11.5cqi);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+
+.kpi__sub {
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+}
+
+.spark {
+  width: 100%;
+  height: 56px;
+  margin-top: var(--s-2);
+}
+.spark__zero {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+.spark__line {
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+.spark__line--pos {
+  stroke: var(--gain);
+}
+.spark__line--neg {
+  stroke: var(--loss);
+}
+.spark__area--pos {
+  fill: var(--gain-weak);
+}
+.spark__area--neg {
+  fill: var(--loss-weak);
+}
+
+.seqs {
+  display: grid;
+  gap: var(--s-3);
+}
+.seq {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+.seq svg {
+  margin-top: 2px;
+}
+.seq--vazia {
+  color: var(--text-3);
+  font-size: var(--fs-sm);
+  align-items: center;
+}
+.seq__linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--s-2);
+  font-size: var(--fs-md);
+}
+.seq__tipo {
+  color: var(--text-2);
+}
+
+/* esqueleto */
+.kpis > .skel {
+  min-height: 96px;
+  border-radius: 0;
+}
+.kpis > .skel.kpi--hero {
+  min-height: 190px;
+}
+
+@media (max-width: 1280px) {
+  .kpis {
+    grid-template-columns: minmax(240px, 1.2fr) repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto;
+  }
+  .kpi--hero {
+    grid-row: span 3;
+  }
+  .kpi:nth-child(4) {
+    border-top: 1px solid var(--line);
+  }
+  .kpi:nth-child(n + 4) {
+    border-top: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 860px) {
+  .kpis {
+    grid-template-columns: 1fr 1fr;
+  }
+  .kpi--hero {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    border-bottom: 1px solid var(--line);
+  }
+  .kpi {
+    border-left: 1px solid var(--line);
+    border-top: 1px solid var(--line);
+  }
+  .kpi:nth-child(odd):not(.kpi--hero) {
+    border-left: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .kpis {
+    grid-template-columns: 1fr;
+  }
+  .kpi {
+    border-left: 0;
+  }
+  .kpi__valor {
+    font-size: var(--fs-lg);
+  }
+}
+
+.kpi .label {
+  font-size: 0.65625rem;   /* 10,5 px: cabe "WIN RATE (POR OPERAÇÃO)" na coluna */
+  letter-spacing: 0.07em;
+}

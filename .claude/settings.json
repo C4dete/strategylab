@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/*completo*.csv)",
+      "Read(**/*2026*.csv)",
+      "Bash(*WIN_1M_completo*)",
+      "Bash(*completo*.csv*)"
+    ]
+  }
+}

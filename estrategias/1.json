@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "id": "1",
+  "name": "1",
+  "created_at": "2026-10-09T15:00:30-03:00",
+  "updated_at": "2026-10-09T15:00:30-03:00",
+  "params": {
+    "janela_inicio": "09:00",
+    "janela_fim": "17:30",
+    "ultima_entrada": "13:00",
+    "candles_gatilho": 20,
+    "candles_media": 5,
+    "bracket_fracao": 0.25,
+    "modo_entrada": "padrao",
+    "reversoes": 0,
+    "rev_stop_x_media": 0.0,
+    "rev_alvo_x_media": 0.0,
+    "book": "cont",
+    "penetracao_ticks": 1,
+    "parar_apos_losses": 2,
+    "contagem_losses": "seguidos",
+    "operacoes_por_dia": 2,
+    "stop_x_media": 2.0,
+    "alvo_x_media": 0.5,
+    "mm_periodo": 9,
+    "bb_periodo": 15,
+    "bb_desvio": 2.0,
+    "filtro_afast_mm_ativo": true,
+    "filtro_afast_mm_x_media": 0.3,
+    "rastrear_mm": true,
+    "sair_ao_tocar_mm": false
+  }
+}
