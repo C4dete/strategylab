@@ -1,0 +1,31 @@
+#!/bin/sh
+# Portão do commit (ver docs/testes.md, "Portão automático"). Ativar: git config core.hooksPath .githooks
+# Contorno consciente (só se o Ricardo pedir): git commit --no-verify
+
+RAIZ=$(git rev-parse --show-toplevel)
+cd "$RAIZ" || exit 1
+STAGE=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$STAGE" ] && exit 0
+
+# 1) Trava de hold-out/segredos: o BD, a base de consulta e qualquer CSV/cache nunca vão para o remoto.
+PROIBIDOS=$(printf '%s\n' "$STAGE" | grep -Ei '^(dados|base_conhecimento)/|\.csv$|\.pkl$|WINM26|(^|/)\.env$')
+if [ -n "$PROIBIDOS" ]; then
+  echo "COMMIT RECUSADO: arquivos que não podem ser versionados (hold-out/dados/segredos):"
+  printf '  %s\n' $PROIBIDOS
+  echo "Tire-os do stage (git restore --staged <arquivo>) e confira o .gitignore."
+  exit 1
+fi
+
+# 2) Backend tocado: perfil 'fronteira' (validação, API, persistência, métricas; ~15 s)
+if printf '%s\n' "$STAGE" | grep -q '^backend/'; then
+  echo ">> pre-commit: backend alterado -> testes.py fronteira (~15 s)"
+  python backend/scripts/testes.py fronteira || { echo "COMMIT RECUSADO: testes do backend falharam."; exit 1; }
+fi
+
+# 3) Frontend tocado: lint, tipos e testes unitários
+if printf '%s\n' "$STAGE" | grep -q '^frontend/'; then
+  echo ">> pre-commit: frontend alterado -> lint, tsc, vitest"
+  (cd frontend && npm run lint && npx tsc -b && npm test) || { echo "COMMIT RECUSADO: checagens do frontend falharam."; exit 1; }
+fi
+
+exit 0

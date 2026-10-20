@@ -80,6 +80,8 @@ export interface Meta {
   }
   faixas: Record<string, Faixa>
   padrao: Params
+  /** Ausente em servidor antigo. */
+  capacidades?: { correlacao: boolean }
 }
 
 export interface Estrategia {
@@ -94,6 +96,8 @@ export interface Estrategia {
 export interface ListaEstrategias {
   estrategias: Estrategia[]
   ultima: string | null
+  /** principal -> ids marcados em "Correlacionar" (lembrado entre sessões). */
+  correlacionar?: Record<string, string[]>
 }
 
 export interface BD {
@@ -146,6 +150,8 @@ export interface Diario {
   operacoes: number
   ganhos: number
   perdas: number
+  /** Só no conjunto: resultado do dia de cada estratégia, na ordem dos componentes (A, B, C…). */
+  rs_por?: number[]
 }
 
 export interface Mensal {
@@ -154,6 +160,10 @@ export interface Mensal {
   pts: number
   dias: number
   dias_positivos: number
+  /** false = mês que o BD cobre e em que a estratégia não operou (vem zerado). Ausente em servidor antigo = operado. */
+  operado?: boolean
+  /** Só no conjunto: resultado do mês de cada estratégia, na ordem dos componentes. */
+  rs_por?: number[]
 }
 
 export type Desfecho = 'gain' | 'loss' | 'time_close' | 'eod'
@@ -177,6 +187,8 @@ export interface Operacao {
   reversao: number
   /** O que o filtro "Afastamento da MM" viu (null com o filtro desligado). */
   ref: RefFiltro | null
+  /** Só no conjunto: índice da estratégia (0 = principal). */
+  estrategia?: number
 }
 
 export interface RefFiltro {
@@ -190,11 +202,33 @@ export interface RefFiltro {
   afast_x: number | null
 }
 
+/** Uma estratégia dentro do conjunto (a principal é a de índice 0). */
+export interface ComponenteResumo {
+  indice: number
+  nome: string
+  total_rs: number
+  total_pts: number
+  operacoes: number
+  pregoes_operados: number
+  win_rate: number
+  drawdown: { rs: number; pts: number }
+  /** Correlação (Pearson) do R$ diário com a principal; null na principal ou quando indefinida. */
+  correlacao_principal: number | null
+}
+
+export interface Diversificacao {
+  dd_conjunto: number
+  soma_dd_isolados: number
+}
+
 export interface Resultado {
   resumo: Resumo
   diario: Diario[]
   mensal: Mensal[]
   operacoes: Operacao[]
+  /** Só quando há estratégias correlacionadas (`/api/portfolio`). */
+  estrategias?: ComponenteResumo[]
+  diversificacao?: Diversificacao
   tempo_ms: number
   em_cache: boolean
   bd: BD

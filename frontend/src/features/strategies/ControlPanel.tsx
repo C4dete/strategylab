@@ -10,6 +10,7 @@ import { TimeInput } from '../../components/ui/TimeInput'
 import type { Workspace } from '../../hooks/useWorkspace'
 import { brl, numero } from '../../lib/format'
 import { BOOK_OPCOES, CONTAGEM_OPCOES, ESCADA_ACAO_OPCOES, MODO_ENTRADA_OPCOES } from '../../lib/params'
+import { CorrelacionarPicker } from '../correlacao/CorrelacionarPicker'
 import { ExcluirDialog, NovaDialog, RenomearDialog, TrocaDialog } from './StrategyDialogs'
 import { StrategyList } from './StrategyList'
 import './ControlPanel.css'
@@ -82,6 +83,14 @@ export function ControlPanel({ ws, meta }: { ws: Workspace; meta: Meta }) {
           onNova={() => setDialogo('nova')}
           onRenomear={() => setDialogo('renomear')}
           onExcluir={setExcluirAlvo}
+        />
+
+        <CorrelacionarPicker
+          estrategias={ws.estrategias}
+          principal={ws.selecionada}
+          marcadas={ws.correlacionadas}
+          onAlternar={ws.alternarCorrelacionada}
+          onLimpar={ws.limparCorrelacionadas}
         />
 
         {p ? (

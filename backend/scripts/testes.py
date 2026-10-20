@@ -50,6 +50,7 @@ CANARIOS = [
     "tests/test_golden.py::test_controles_novos_desligados_nao_mudam_o_cenario_base",
     "tests/test_golden.py::test_cenario_identico_ao_motor_antigo[base]",
     "tests/test_lab.py::test_laboratorio_reproduz_os_numeros_ancora_no_bd_real",
+    "tests/test_portfolio.py::test_conjunto_de_dois_cenarios_ancora_soma_as_ancoras",
     "tests/test_sem_lookahead.py::test_futuro_destruido_nao_muda_as_entradas_no_bd_real[filtro ligado, book cont]",
 ]
 NAO_CARTESIANO = ["--deselect", "tests/test_combinacoes.py::test_todas_as_combinacoes",

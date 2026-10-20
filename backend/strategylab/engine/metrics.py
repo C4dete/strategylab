@@ -5,7 +5,7 @@ Todas as contas são feitas sobre o fechamento de cada pregão (curva de capital
 
 from __future__ import annotations
 
-from typing import List
+from typing import Iterable, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -96,14 +96,22 @@ def sequencias(diario: pd.DataFrame) -> dict:
     return res
 
 
-def resumo_mensal(diario: pd.DataFrame) -> pd.DataFrame:
-    cols = ["mes", "rs", "pts", "dias", "dias_positivos"]
+def resumo_mensal(diario: pd.DataFrame, meses_bd: Optional[Iterable[str]] = None) -> pd.DataFrame:
+    """Um registro por mês COM operação. Com `meses_bd` (AAAA-MM de todos os meses que o BD cobre), os meses sem nenhuma
+    operação entram zerados e com `operado=False`: só acrescenta linhas, os totais não mudam."""
+    cols = ["mes", "rs", "pts", "dias", "dias_positivos", "operado"]
     if diario.empty:
-        return pd.DataFrame(columns=cols)
-    d = diario.copy()
-    d["mes"] = pd.to_datetime(d["data"]).dt.strftime("%Y-%m")
-    m = d.groupby("mes").agg(rs=("rs", "sum"), pts=("pts", "sum"), dias=("rs", "size"),
-                             dias_positivos=("rs", lambda s: int((s > 0).sum()))).reset_index()
+        m = pd.DataFrame(columns=cols)
+    else:
+        d = diario.copy()
+        d["mes"] = pd.to_datetime(d["data"]).dt.strftime("%Y-%m")
+        m = d.groupby("mes").agg(rs=("rs", "sum"), pts=("pts", "sum"), dias=("rs", "size"),
+                                 dias_positivos=("rs", lambda s: int((s > 0).sum()))).reset_index()
+        m["operado"] = True
+    faltam = sorted(set(meses_bd or ()) - set(m["mes"]))
+    if faltam:
+        vazios = pd.DataFrame({"mes": faltam, "rs": 0.0, "pts": 0.0, "dias": 0, "dias_positivos": 0, "operado": False})
+        m = vazios if m.empty else pd.concat([m[cols], vazios], ignore_index=True)
     return m[cols].sort_values("mes").reset_index(drop=True)
 
 

@@ -1,8 +1,10 @@
 import { AlertTriangle, CircleDot, FlaskConical, Zap } from 'lucide-react'
-import type { CSSProperties } from 'react'
+import { Fragment, useState, type CSSProperties } from 'react'
 import type { Estrategia } from '../../api/types'
 import { Button } from '../../components/ui/Button'
 import { segundos } from '../../lib/format'
+import { PerformancePanel } from '../correlacao/PerformancePanel'
+import { NomeComSelo } from '../correlacao/Selo'
 import { DayExplorer } from '../day/DayExplorer'
 import { DailyOverviewChart } from './charts/DailyOverviewChart'
 import { MonthlyChart } from './charts/MonthlyChart'
@@ -12,16 +14,32 @@ import type { Workspace } from '../../hooks/useWorkspace'
 
 function Contexto({ ws, selecionada }: { ws: Workspace; selecionada: Estrategia }) {
   const r = ws.resultado
+  const outras = ws.correlacionadas.flatMap((id) => ws.estrategias.find((e) => e.id === id) ?? [])
   return (
     <div className="contexto" role="status" aria-live="polite">
       <div className="contexto__id">
         <FlaskConical size={16} aria-hidden />
-        <span className="contexto__nome">{selecionada.nome}</span>
+        {outras.length === 0 ? (
+          <span className="contexto__nome">{selecionada.nome}</span>
+        ) : (
+          <span className="contexto__conjunto">
+            <span className="contexto__nome"><NomeComSelo i={0} nome={selecionada.nome} /></span>
+            {outras.map((e, k) => (
+              <Fragment key={e.id}>
+                <span className="contexto__mais" aria-hidden>+</span>
+                <span className="contexto__nome"><NomeComSelo i={k + 1} nome={e.nome} /></span>
+              </Fragment>
+            ))}
+          </span>
+        )}
+        {outras.length > 0 && <span className="tag">Conjunto de {outras.length + 1}</span>}
         {ws.alterado && <span className="tag tag--accent">rascunho não salvo</span>}
       </div>
       <div className="contexto__estado">
         {ws.executando ? (
-          <span className="contexto__run"><Zap size={14} aria-hidden /> Executando o backtest…</span>
+          <span className="contexto__run">
+            <Zap size={14} aria-hidden /> {ws.tamanhoExecucao > 1 ? `Executando o conjunto (${ws.tamanhoExecucao} estratégias)…` : 'Executando o backtest…'}
+          </span>
         ) : ws.desatualizado ? (
           <span className="contexto__run contexto__run--alerta">
             <CircleDot size={14} aria-hidden /> Parâmetros alterados — execute para atualizar
@@ -42,6 +60,7 @@ function Contexto({ ws, selecionada }: { ws: Workspace; selecionada: Estrategia 
 export function ResultsView({ ws }: { ws: Workspace }) {
   const { selecionada, resultado: r } = ws
   const bdPronto = ws.bd?.estado === 'pronto'
+  const [mesPorEstrategia, setMesPorEstrategia] = useState(false)
 
   if (ws.listaCarregando) {
     return <div className="vazio"><span className="skel" style={{ width: 220, height: 20, display: 'block' }} /></div>
@@ -89,25 +108,46 @@ export function ResultsView({ ws }: { ws: Workspace }) {
             </div>
           ) : (
             <>
-              <KpiBoard resumo={r.resumo} diario={r.diario} />
+              <KpiBoard resumo={r.resumo} diario={r.diario} titulo={r.estrategias ? 'Resultado conjunto' : undefined} />
 
-              <section className="bloco reveal" style={{ '--i': 1 } as CSSProperties} aria-labelledby="t-panorama">
+              {r.estrategias && r.diversificacao && (
+                <PerformancePanel estrategias={r.estrategias} resumo={r.resumo} diversificacao={r.diversificacao} />
+              )}
+
+              <section className="bloco reveal" style={{ '--i': 2 } as CSSProperties} aria-labelledby="t-panorama">
                 <header className="bloco__topo">
                   <div>
                     <h2 id="t-panorama" className="bloco__titulo">Panorama diário</h2>
-                    <p className="bloco__sub">Resultado de cada pregão (barras) e capital acumulado (linha, eixo à direita).</p>
+                    <p className="bloco__sub">
+                      {r.estrategias
+                        ? 'Resultado conjunto de cada pregão (barras) e capital acumulado (linha). Clique na legenda para ver a curva de cada estratégia.'
+                        : 'Resultado de cada pregão (barras) e capital acumulado (linha, eixo à direita).'}
+                    </p>
                   </div>
                 </header>
-                <div className="bloco__corpo"><DailyOverviewChart diario={r.diario} /></div>
+                <div className="bloco__corpo"><DailyOverviewChart diario={r.diario} estrategias={r.estrategias} /></div>
               </section>
 
-              <section className="bloco reveal" style={{ '--i': 2 } as CSSProperties} aria-labelledby="t-mes">
+              <section className="bloco reveal" style={{ '--i': 3 } as CSSProperties} aria-labelledby="t-mes">
                 <header className="bloco__topo">
                   <div>
                     <h2 id="t-mes" className="bloco__titulo">Resultado por mês</h2>
+                    {r.estrategias && mesPorEstrategia && <p className="bloco__sub">Cada cor é uma estratégia; o traço branco marca o total líquido do mês.</p>}
                   </div>
+                  {r.estrategias && (
+                    <button type="button" className="chip" aria-pressed={mesPorEstrategia} onClick={() => setMesPorEstrategia((v) => !v)}>
+                      Por estratégia
+                    </button>
+                  )}
                 </header>
-                <div className="bloco__corpo"><MonthlyChart mensal={r.mensal} /></div>
+                {r.estrategias && mesPorEstrategia && (
+                  <ul className="corr-chips" aria-label="Legenda das estratégias">
+                    {r.estrategias.map((e) => (
+                      <li key={e.indice} style={{ listStyle: 'none' }}><NomeComSelo i={e.indice} nome={e.nome} principal={e.indice === 0} /></li>
+                    ))}
+                  </ul>
+                )}
+                <div className="bloco__corpo"><MonthlyChart mensal={r.mensal} estrategias={r.estrategias} porEstrategia={mesPorEstrategia} /></div>
               </section>
 
               <DayExplorer resultado={r} />

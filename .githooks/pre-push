@@ -1,0 +1,24 @@
+#!/bin/sh
+# Portão do push: se o que está sendo enviado mexe no motor, roda a bateria rápida + paridade (~5 min).
+# Contorno consciente (só se o Ricardo pedir): git push --no-verify
+
+RAIZ=$(git rev-parse --show-toplevel)
+cd "$RAIZ" || exit 1
+ZERO=0000000000000000000000000000000000000000
+MOTOR=0
+
+while read -r _ref_local sha_local _ref_remoto sha_remoto; do
+  [ "$sha_local" = "$ZERO" ] && continue                      # apagando branch: nada a testar
+  if [ "$sha_remoto" = "$ZERO" ]; then
+    ARQ=$(git diff --name-only "$(git hash-object -t tree /dev/null)" "$sha_local")   # branch nova: tudo
+  else
+    ARQ=$(git diff --name-only "$sha_remoto" "$sha_local")
+  fi
+  printf '%s\n' "$ARQ" | grep -q '^backend/strategylab/engine/' && MOTOR=1
+done
+
+if [ "$MOTOR" = "1" ]; then
+  echo ">> pre-push: o motor mudou -> testes.py parametro (bateria rápida + paridade, ~5 min)"
+  python backend/scripts/testes.py parametro || { echo "PUSH RECUSADO: testes falharam."; exit 1; }
+fi
+exit 0

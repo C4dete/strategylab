@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..engine.params import Params
 
@@ -21,6 +21,7 @@ class EstrategiaOut(BaseModel):
 class ListaEstrategias(BaseModel):
     estrategias: List[EstrategiaOut]
     ultima: Optional[str] = None
+    correlacionar: Dict[str, List[str]] = {}      # principal -> ids marcados em "Correlacionar"
 
 
 class NovaEstrategia(BaseModel):
@@ -56,3 +57,18 @@ class BDOut(BaseModel):
 
 class BacktestIn(BaseModel):
     params: Params
+
+
+class Correlacionar(BaseModel):
+    id: str
+    ids: List[str] = []
+
+
+class Componente(BaseModel):
+    nome: str = Field(min_length=1, max_length=60)
+    params: Params
+
+
+class PortfolioIn(BaseModel):
+    """Estratégias do conjunto; a primeira é a principal (com o rascunho), as outras vêm com os parâmetros salvos."""
+    componentes: List[Componente] = Field(min_length=1, max_length=12)

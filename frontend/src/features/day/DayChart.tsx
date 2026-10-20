@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
-import type { BarraDia, Operacao, Params } from '../../api/types'
+import type { BarraDia, ComponenteResumo, Operacao, Params } from '../../api/types'
 import { brl, numero, pts } from '../../lib/format'
+import { identidade } from '../correlacao/identidade'
+import { corDe, escapa, seloHtml } from '../correlacao/seloHtml'
 import { EChart } from '../results/charts/EChart'
 import type { Option } from '../results/charts/echarts'
 import { estiloEixo, estiloTooltip, FONTE_MONO, FONTE_UI, usePaleta } from '../results/charts/palette'
@@ -8,8 +10,11 @@ import { estiloEixo, estiloTooltip, FONTE_MONO, FONTE_UI, usePaleta } from '../r
 interface Props {
   barras: BarraDia[]
   operacoes: Operacao[]
+  /** Parâmetros da principal (A): indicadores, janela e candle de referência são dela. */
   params: Params
   timeframeMin: number
+  /** Só no conjunto: marcadores na cor/letra de cada estratégia. */
+  estrategias?: ComponenteResumo[]
 }
 
 /** "16:07" -> "16:00" (a barra de `tf` minutos que contém o horário). */
@@ -33,8 +38,9 @@ const linha = (rotulo: string, valor: string, cor?: string) =>
  * zeragem. Os indicadores são plotados como as plataformas fazem: o valor de cada barra é o do FECHAMENTO dela. As regras
  * do motor leem o valor da barra anterior — por isso, com o filtro ligado, o candle de referência de cada entrada é destacado.
  */
-export function DayChart({ barras, operacoes, params, timeframeMin }: Props) {
+export function DayChart({ barras, operacoes, params, timeframeMin, estrategias }: Props) {
   const p = usePaleta()
+  const conj = !!estrategias && estrategias.length > 1
 
   const option = useMemo<Option>(() => {
     const eixo = estiloEixo(p)
@@ -52,15 +58,30 @@ export function DayChart({ barras, operacoes, params, timeframeMin }: Props) {
       .map((m) => ({ ...m, barra: barraDe(m.hhmm, timeframeMin) }))
       .filter((m) => existe(m.barra))
 
+    const idx = (o: Operacao) => o.estrategia ?? 0
     const entradas = operacoes.map((o) => ({
       value: [o.entrada_barra, o.preco_entrada],
       symbol: 'triangle',
       symbolRotate: o.lado === 'sell' ? 180 : 0,
       op: o,
+      // no conjunto: a entrada leva a cor e a letra da estratégia (a letra fica abaixo da compra e acima da venda)
+      ...(conj
+        ? {
+            itemStyle: { color: corDe(p, idx(o)), borderColor: p.surface, borderWidth: 1.5 },
+            label: {
+              show: true, formatter: identidade(idx(o)).letra, color: corDe(p, idx(o)), fontFamily: FONTE_MONO, fontSize: 10, fontWeight: 700,
+              position: o.lado === 'buy' ? 'bottom' : 'top', distance: 4,
+            },
+          }
+        : {}),
     }))
     const saidas = operacoes.map((o) => ({
       value: [o.saida_barra, o.preco_saida],
-      itemStyle: { color: o.desfecho === 'gain' ? p.gain : o.desfecho === 'loss' ? p.loss : p.text3 },
+      // a cor de resultado (gain/loss) fica no preenchimento; no conjunto, o contorno é o da estratégia
+      itemStyle: {
+        color: o.desfecho === 'gain' ? p.gain : o.desfecho === 'loss' ? p.loss : p.text3,
+        ...(conj ? { borderColor: corDe(p, idx(o)), borderWidth: 2.5 } : {}),
+      },
       op: o,
     }))
 
@@ -75,7 +96,7 @@ export function DayChart({ barras, operacoes, params, timeframeMin }: Props) {
     }))
 
     // candle de referência de cada entrada (só existe com o filtro ligado): a faixa cobre a barra inteira
-    const refs = [...new Set(operacoes.flatMap((o) => (o.ref ? [o.ref.barra] : [])))]
+    const refs = [...new Set(operacoes.flatMap((o) => (o.ref && (!conj || idx(o) === 0) ? [o.ref.barra] : [])))]       // a referência é da principal
       .map((t) => cats.indexOf(t))
       .filter((i) => i >= 0)
     const areasRef = refs.map((i) => [{ xAxis: i - 0.5 }, { xAxis: i + 0.5 }])
@@ -140,8 +161,11 @@ export function DayChart({ barras, operacoes, params, timeframeMin }: Props) {
               (o.ref.afast_pts != null ? linha('Afastamento', `${numero(o.ref.afast_pts, 0)} pts${o.ref.afast_x != null ? ` · ${numero(o.ref.afast_x, 2)}×` : ''}`) : '') +
               '</div>'
             : ''
+          const dona = conj && estrategias
+            ? `<div style="margin-bottom:6px">${seloHtml(p, idx(o))}<b>${escapa(estrategias[idx(o)]?.nome ?? '')}</b></div>`
+            : ''
           return (
-            `<div style="font-family:${FONTE_UI};min-width:190px"><div style="color:${p.text3};margin-bottom:4px">` +
+            `<div style="font-family:${FONTE_UI};min-width:190px">${dona}<div style="color:${p.text3};margin-bottom:4px">` +
             `${entrada ? 'Entrada' : 'Saída'} · ${entrada ? o.entrada : o.saida}</div>` +
             `<b>${o.lado === 'buy' ? 'Compra' : 'Venda'}</b> ${entrada ? `a ${numero(o.preco_entrada)}` : `a ${numero(o.preco_saida)} · ${ROTULO_DESFECHO[o.desfecho]}${o.saida_por === 'mm' ? ' · na MM' : o.saida_por === 'trailing' ? ' · no trailing' : o.saida_por === 'tempo' ? ' · por tempo' : ''}`}` +
             (entrada
@@ -190,7 +214,7 @@ export function DayChart({ barras, operacoes, params, timeframeMin }: Props) {
         { name: 'Saídas', type: 'scatter', z: 5, symbolSize: 10, itemStyle: { borderColor: p.surface, borderWidth: 1.5 }, data: saidas },
       ],
     }
-  }, [barras, operacoes, params, timeframeMin, p])
+  }, [barras, operacoes, params, timeframeMin, estrategias, conj, p])
 
-  return <EChart option={option} height={400} ariaLabel={`Candles do pregão com ${operacoes.length} operação(ões)`} />
+  return <EChart option={option} height={400} ariaLabel={`Candles do pregão com ${operacoes.length} operação(ões)${conj ? ` de ${estrategias?.length} estratégias, marcadas por letra e cor` : ''}`} />
 }

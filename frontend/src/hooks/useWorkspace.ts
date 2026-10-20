@@ -3,21 +3,33 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api/client'
 import type { BD, Estrategia, ListaEstrategias, Params, Resultado } from '../api/types'
 import { useToast } from '../components/ui/Toast'
+import { alternaCorrelacionada, saneiaCorrelacionadas } from '../features/correlacao/identidade'
 import { clonar, paramsIguais, validar, type Erros } from '../lib/params'
 
 interface EstadoExecucao {
   executando: boolean
   resultado: Resultado | null
   erro: string | null
+  /** Quais correlacionadas (e com quais parâmetros salvos) entraram nesta execução; '' = sem conjunto. */
+  correl: string
+  /** Quantas estratégias a execução em andamento junta (para a mensagem "Executando o conjunto…"). */
+  tamanho: number
 }
+
+const SEM_EXECUCAO: EstadoExecucao = { executando: false, resultado: null, erro: null, correl: '', tamanho: 1 }
 
 function mensagem(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
 }
 
+/** Identifica as correlacionadas de uma execução pelos ids e pelos parâmetros SALVOS (se um deles mudar, o resultado envelheceu). */
+const assinaturaCorrel = (comps: readonly Estrategia[]) =>
+  comps.length ? JSON.stringify(comps.map((e) => [e.id, e.params])) : ''
+
 /**
  * Estado do espaço de trabalho: estratégias (salvas no servidor), rascunho dos parâmetros em edição,
- * BD ativo e o último resultado. Concentra as regras de "alterações não salvas" e de execução.
+ * BD ativo, as estratégias marcadas em "Correlacionar" e o último resultado (da principal sozinha ou do conjunto).
+ * Concentra as regras de "alterações não salvas" e de execução.
  */
 export function useWorkspace() {
   const qc = useQueryClient()
@@ -34,7 +46,8 @@ export function useWorkspace() {
   const [selecionadaId, setSelecionadaId] = useState<string | null>(null)
   const [rascunho, setRascunho] = useState<Params | null>(null)
   const [pendenteId, setPendenteId] = useState<string | null>(null)
-  const [exec, setExec] = useState<EstadoExecucao>({ executando: false, resultado: null, erro: null })
+  const [correlacionadas, setCorrelacionadas] = useState<string[]>([])
+  const [exec, setExec] = useState<EstadoExecucao>(SEM_EXECUCAO)
   const [bdConferido, setBdConferido] = useState(false)
 
   const seq = useRef(0)
@@ -42,21 +55,42 @@ export function useWorkspace() {
   const rodouAoAbrir = useRef(false)
 
   const estrategias = useMemo(() => lista.data?.estrategias ?? [], [lista.data])
+  const mapaCorrel = lista.data?.correlacionar
   const selecionada: Estrategia | null = estrategias.find((e) => e.id === selecionadaId) ?? null
   const salvos = selecionada?.params ?? null
   const alterado = rascunho !== null && salvos !== null && !paramsIguais(rascunho, salvos)
   const erros: Erros = useMemo(() => (rascunho ? validar(rascunho) : {}), [rascunho])
   const valido = Object.keys(erros).length === 0
-  const desatualizado = exec.resultado !== null && rascunho !== null && !paramsIguais(exec.resultado.params, rascunho)
+
+  // as execuções são disparadas de callbacks antigos: elas leem o que há de mais novo por aqui
+  const estrategiasRef = useRef<Estrategia[]>([])
+  const mapaRef = useRef<Record<string, string[]>>({})
+  const correlRef = useRef<string[]>([])
+  useEffect(() => {
+    estrategiasRef.current = estrategias
+    mapaRef.current = mapaCorrel ?? {}
+    correlRef.current = correlacionadas
+  })
+
+  const comps = useMemo(
+    () => correlacionadas.flatMap((id) => estrategias.find((e) => e.id === id && e.valida) ?? []),
+    [correlacionadas, estrategias],
+  )
+  const desatualizado =
+    exec.resultado !== null && rascunho !== null && (!paramsIguais(exec.resultado.params, rascunho) || exec.correl !== assinaturaCorrel(comps))
 
   // ------------------------------------------------------------------ execução
-  const executar = useCallback(async (params: Params) => {
+  /** Roda a principal sozinha ou, com correlacionadas, o conjunto (a principal usa o rascunho; as outras, o salvo). */
+  const executar = useCallback(async (params: Params, nome: string, ids: string[]) => {
     const id = ++seq.current
-    setExec((s) => ({ ...s, executando: true, erro: null }))
+    const outras = ids.flatMap((i) => estrategiasRef.current.find((e) => e.id === i && e.params) ?? [])
+    setExec((s) => ({ ...s, executando: true, erro: null, tamanho: 1 + outras.length }))
     try {
-      const r = await api.backtest(params)
+      const r = outras.length
+        ? await api.portfolio([{ nome, params }, ...outras.map((e) => ({ nome: e.nome, params: e.params as Params }))])
+        : await api.backtest(params)
       if (id === seq.current) {
-        setExec({ executando: false, resultado: r, erro: null })
+        setExec({ executando: false, resultado: r, erro: null, correl: assinaturaCorrel(outras), tamanho: 1 + outras.length })
         qc.setQueryData(['dataset'], r.bd)       // mantém o chip do BD em dia (outra aba pode ter trocado)
       }
     } catch (e) {
@@ -65,8 +99,8 @@ export function useWorkspace() {
   }, [qc])
 
   const rodar = useCallback(() => {
-    if (rascunho && valido) void executar(rascunho)
-  }, [rascunho, valido, executar])
+    if (rascunho && valido && selecionada) void executar(rascunho, selecionada.nome, correlacionadas)
+  }, [rascunho, valido, selecionada, correlacionadas, executar])
 
   // ------------------------------------------------------------------ seleção
   const aplicarSelecao = useCallback(
@@ -75,11 +109,14 @@ export function useWorkspace() {
         toast('erro', `“${e.nome}” não pôde ser lida: ${e.erro ?? 'arquivo inválido'}`)
         return
       }
+      // cada estratégia lembra as suas correlacionadas (e lembra que ficou sem nenhuma)
+      const ids = saneiaCorrelacionadas(mapaRef.current[e.id] ?? [], estrategiasRef.current, e.id)
       setSelecionadaId(e.id)
       setRascunho(clonar(e.params))
+      setCorrelacionadas(ids)
       setPendenteId(null)
       api.definirUltima(e.id).catch(() => undefined)
-      void executar(e.params)
+      void executar(e.params, e.nome, ids)
     },
     [executar, toast],
   )
@@ -88,11 +125,12 @@ export function useWorkspace() {
   useEffect(() => {
     if (iniciou.current || !lista.data) return
     iniciou.current = true
-    const { estrategias: itens, ultima } = lista.data
+    const { estrategias: itens, ultima, correlacionar } = lista.data
     const alvo = itens.find((e) => e.id === ultima && e.valida) ?? itens.find((e) => e.valida)
     if (alvo?.params) {
       setSelecionadaId(alvo.id)
       setRascunho(clonar(alvo.params))
+      setCorrelacionadas(saneiaCorrelacionadas(correlacionar?.[alvo.id] ?? [], itens, alvo.id))
     }
   }, [lista.data])
 
@@ -114,10 +152,10 @@ export function useWorkspace() {
 
   // abertura: roda sozinho assim que o BD padrão estiver pronto
   useEffect(() => {
-    if (rodouAoAbrir.current || !rascunho || !bdConferido) return
+    if (rodouAoAbrir.current || !rascunho || !bdConferido || !selecionada) return
     rodouAoAbrir.current = true
-    void executar(rascunho)
-  }, [rascunho, bdConferido, executar])
+    void executar(rascunho, selecionada.nome, correlacionadas)
+  }, [rascunho, bdConferido, selecionada, correlacionadas, executar])
 
   const selecionar = useCallback(
     (id: string) => {
@@ -133,6 +171,35 @@ export function useWorkspace() {
   const atualizaLista = useCallback(async (): Promise<ListaEstrategias> => {
     return qc.fetchQuery({ queryKey: ['strategies'], queryFn: api.estrategias, staleTime: 0 })
   }, [qc])
+
+  // ------------------------------------------------------------------ correlacionar
+  const aplicarCorrelacionadas = useCallback(
+    (ids: string[]) => {
+      if (!selecionada) return
+      setCorrelacionadas(ids)
+      // grava no servidor (lista vazia apaga a marca) e espelha no cache para o próximo clique na estratégia já vir certo
+      api
+        .definirCorrelacionar(selecionada.id, ids)
+        .then(() =>
+          qc.setQueryData<ListaEstrategias>(['strategies'], (antigo) => {
+            if (!antigo) return antigo
+            const mapa = { ...(antigo.correlacionar ?? {}) }
+            if (ids.length) mapa[selecionada.id] = ids
+            else delete mapa[selecionada.id]
+            return { ...antigo, correlacionar: mapa }
+          }),
+        )
+        .catch((err) => toast('erro', `Não foi possível lembrar a seleção: ${mensagem(err)}`))
+      if (rascunho && valido) void executar(rascunho, selecionada.nome, ids)
+    },
+    [selecionada, rascunho, valido, executar, qc, toast],
+  )
+
+  const alternarCorrelacionada = useCallback(
+    (id: string) => aplicarCorrelacionadas(alternaCorrelacionada(correlRef.current, id)),
+    [aplicarCorrelacionadas],
+  )
+  const limparCorrelacionadas = useCallback(() => aplicarCorrelacionadas([]), [aplicarCorrelacionadas])
 
   // ------------------------------------------------------------------ CRUD
   const criar = useCallback(
@@ -175,18 +242,29 @@ export function useWorkspace() {
       await api.excluir(id)
       const nova = await atualizaLista()
       toast('ok', `“${alvo?.nome ?? id}” excluída.`)
-      if (id !== selecionadaId) return
+      if (id !== selecionadaId) {
+        // era uma correlacionada: o servidor já tirou das listas; o conjunto na tela passa a ser sem ela
+        if (correlRef.current.includes(id) && rascunho && selecionada) {
+          const restantes = correlRef.current.filter((x) => x !== id)
+          setCorrelacionadas(restantes)
+          void executar(rascunho, selecionada.nome, restantes)
+        }
+        return
+      }
       const proxima = nova.estrategias.find((e) => e.id === nova.ultima && e.valida) ?? nova.estrategias.find((e) => e.valida)
       if (proxima) {
+        mapaRef.current = nova.correlacionar ?? {}
+        estrategiasRef.current = nova.estrategias
         aplicarSelecao(proxima)
       } else {
         setSelecionadaId(null)
         setRascunho(null)
+        setCorrelacionadas([])
         seq.current++
-        setExec({ executando: false, resultado: null, erro: null })
+        setExec(SEM_EXECUCAO)
       }
     },
-    [estrategias, selecionadaId, atualizaLista, aplicarSelecao, toast],
+    [estrategias, selecionadaId, selecionada, rascunho, atualizaLista, aplicarSelecao, executar, toast],
   )
 
   const descartar = useCallback(() => {
@@ -198,10 +276,10 @@ export function useWorkspace() {
     (novo: BD) => {
       qc.setQueryData(['dataset'], novo)
       seq.current++                                   // o resultado antigo é de outro BD: descarta
-      setExec({ executando: false, resultado: null, erro: null })
-      if (rascunho) void executar(rascunho)
+      setExec(SEM_EXECUCAO)
+      if (rascunho && selecionada) void executar(rascunho, selecionada.nome, correlacionadas)
     },
-    [qc, rascunho, executar],
+    [qc, rascunho, selecionada, correlacionadas, executar],
   )
 
   // ------------------------------------------------------------------ atalhos e proteção
@@ -250,7 +328,12 @@ export function useWorkspace() {
     excluir,
     descartar,
     trocouBD,
+    correlacionadas,
+    alternarCorrelacionada,
+    limparCorrelacionadas,
     executando: exec.executando,
+    /** Quantas estratégias a execução em andamento junta. */
+    tamanhoExecucao: exec.tamanho,
     resultado: exec.resultado,
     erroExecucao: exec.erro,
     rodar,

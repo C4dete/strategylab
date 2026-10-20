@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
@@ -110,6 +111,15 @@ def test_backtest_formato_cache_e_dia(cliente):
     assert res["operacoes"] == len(j["operacoes"]) == sum(d["operacoes"] for d in j["diario"])
     assert res["total_rs"] == pytest.approx(sum(d["rs"] for d in j["diario"]))
     assert j["diario"][-1]["acumulado"] == pytest.approx(res["total_rs"])
+    # mensal: todo mês que o BD cobre aparece; mês sem operação vem zerado e marcado, sem mudar o total
+    bd = cliente.get("/api/dataset").json()
+    meses_bd = [str(m) for m in pd.period_range(bd["inicio"], bd["fim"], freq="M")]
+    assert [m["mes"] for m in j["mensal"]] == meses_bd
+    assert sum(m["rs"] for m in j["mensal"]) == pytest.approx(res["total_rs"])
+    for m in j["mensal"]:
+        assert m["operado"] == (m["dias"] > 0)
+        if not m["operado"]:
+            assert m["rs"] == 0 and m["pts"] == 0 and m["dias_positivos"] == 0
 
     r2 = cliente.post("/api/backtest", json=corpo).json()
     assert r2["em_cache"] is True and r2["resumo"] == res

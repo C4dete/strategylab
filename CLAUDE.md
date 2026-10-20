@@ -45,6 +45,8 @@ Laboratório local de backtest do **WIN**. Leia o [README](README.md) (como roda
   animações só `transform/opacity` e respeitando `prefers-reduced-motion`. Estado de servidor com TanStack Query;
   regras de rascunho/execução ficam em `hooks/useWorkspace.ts`.
 - Dados do usuário (`estrategias/*.json`, `dados/`) **não** vão para testes: os testes usam `tmp_path` e CSV sintético.
+- **Estratégias no conjunto (Correlacionar):** identidade = selo (letra A, B, C…; A é a principal) + cor `--e1…--e6` (`styles/tokens.css`, só tons quentes/neutros). **Verde/vermelho são só para ganho/perda**; a cor nunca é o único sinal.
+  O conjunto é soma de backtests independentes (sem netting). Verificação no navegador: use a instância isolada `strategylab-verif` (porta 8766) e **restaure `estrategias/_estado.json`** depois (a seleção do Correlacionar grava nele).
 
 ## Verificação antes de dizer "pronto"
 

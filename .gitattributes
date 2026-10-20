@@ -1,0 +1,2 @@
+# Hooks precisam de fim de linha LF (o Windows converteria para CRLF e o sh quebraria)
+.githooks/* text eol=lf

@@ -48,6 +48,20 @@ export default function App() {
   }
 
   const ausentes = ws.meta ? camposAusentesNoServidor(ws.meta.padrao) : []
+  const semCorrelacao = ws.meta !== null && !ws.meta.capacidades?.correlacao
+  if (semCorrelacao && ausentes.length === 0) {
+    return (
+      <div className="falha-geral" role="alert">
+        <Marca />
+        <h1>Servidor desatualizado</h1>
+        <p>
+          O servidor em execução não conhece o <b>Correlacionar</b> e não saberia somar as estratégias.
+          Feche o StrategyLab (<code>encerrar.bat</code>) e abra de novo (<code>iniciar.bat</code>).
+        </p>
+        <Button variant="primary" onClick={() => window.location.reload()}>Tentar de novo</Button>
+      </div>
+    )
+  }
   if (ausentes.length > 0) {
     return (
       <div className="falha-geral" role="alert">

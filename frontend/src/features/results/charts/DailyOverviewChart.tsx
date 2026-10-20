@@ -1,17 +1,30 @@
 import { useMemo } from 'react'
-import type { Diario } from '../../../api/types'
+import type { ComponenteResumo, Diario } from '../../../api/types'
 import { brl, dataBR, dataCurta, diaDaSemana, numero } from '../../../lib/format'
+import { identidade } from '../../correlacao/identidade'
+import { corDe, escapa, seloHtml } from '../../correlacao/seloHtml'
 import { EChart } from './EChart'
 import type { Option } from './echarts'
 import { estiloEixo, estiloTooltip, FONTE_MONO, FONTE_UI, usePaleta } from './palette'
 
-/** Panorama diário: barras do resultado de cada pregão + curva de capital acumulada (eixo à direita). */
-export function DailyOverviewChart({ diario }: { diario: Diario[] }) {
+/**
+ * Panorama diário: barras do resultado de cada pregão + curva de capital acumulada (eixo à direita).
+ * No conjunto, o tooltip quebra o dia por estratégia e a legenda liga/desliga a curva acumulada de cada uma (desligadas por padrão).
+ */
+export function DailyOverviewChart({ diario, estrategias }: { diario: Diario[]; estrategias?: ComponenteResumo[] }) {
   const p = usePaleta()
 
   const option = useMemo<Option>(() => {
     const eixo = estiloEixo(p)
     const datas = diario.map((d) => d.data)
+    const conj = estrategias && estrategias.length > 1 && diario.every((d) => d.rs_por) ? estrategias : null
+    const nomeCurva = (e: ComponenteResumo) => `${identidade(e.indice).letra} · ${e.nome}`
+    const acumuladas = conj
+      ? conj.map((e) => {
+          let acc = 0
+          return diario.map((d) => (acc += d.rs_por?.[e.indice] ?? 0))
+        })
+      : []
     return {
       animationDuration: 700,
       animationEasing: 'cubicOut',
@@ -19,7 +32,8 @@ export function DailyOverviewChart({ diario }: { diario: Diario[] }) {
       legend: {
         top: 4, right: 8, itemWidth: 14, itemHeight: 8, icon: 'rect',
         textStyle: { color: p.text2, fontFamily: FONTE_UI, fontSize: 12 },
-        data: ['Resultado do dia', 'Capital acumulado'],
+        data: ['Resultado do dia', 'Capital acumulado', ...(conj ? conj.map(nomeCurva) : [])],
+        selected: Object.fromEntries((conj ?? []).map((e) => [nomeCurva(e), false])),      // curvas individuais: ligam pela legenda
       },
       tooltip: {
         ...estiloTooltip(p),
@@ -38,6 +52,19 @@ export function DailyOverviewChart({ diario }: { diario: Diario[] }) {
             `<b style="font-family:${FONTE_MONO};color:${cor}">${brl(d.rs, { mais: true })}</b></div>` +
             `<div style="display:flex;justify-content:space-between;gap:16px"><span>Acumulado</span>` +
             `<b style="font-family:${FONTE_MONO}">${brl(d.acumulado)}</b></div>` +
+            (conj && d.rs_por
+              ? `<div style="margin:6px 0;padding:6px 0;border-top:1px solid ${p.line};border-bottom:1px solid ${p.line}">` +
+                conj
+                  .map((e) => {
+                    const v = d.rs_por?.[e.indice] ?? 0
+                    return (
+                      `<div style="display:flex;justify-content:space-between;gap:16px;align-items:center"><span>${seloHtml(p, e.indice)}${escapa(e.nome)}</span>` +
+                      `<b style="font-family:${FONTE_MONO};color:${v > 0 ? p.gain : v < 0 ? p.loss : p.text3}">${v === 0 ? '—' : brl(v, { mais: true })}</b></div>`
+                    )
+                  })
+                  .join('') +
+                '</div>'
+              : '') +
             `<div style="color:${p.text3};margin-top:4px">${d.ganhos} gain · ${d.perdas} loss</div></div>`
           )
         },
@@ -83,9 +110,17 @@ export function DailyOverviewChart({ diario }: { diario: Diario[] }) {
           areaStyle: { color: p.accent, opacity: 0.07 },
           data: diario.map((d) => d.acumulado),
         },
+        ...(conj
+          ? conj.map((e, k) => ({
+              name: nomeCurva(e), type: 'line', yAxisIndex: 1, showSymbol: false, z: 4, silent: true,
+              lineStyle: { color: corDe(p, e.indice), width: 1.4, ...(identidade(e.indice).repetida ? { type: 'dashed' as const } : {}) },
+              itemStyle: { color: corDe(p, e.indice) },
+              data: acumuladas[k],
+            }))
+          : []),
       ],
     }
-  }, [diario, p])
+  }, [diario, estrategias, p])
 
   const ultimo = diario[diario.length - 1]
   return (

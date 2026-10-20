@@ -75,9 +75,11 @@ function Seq({ tipo, s }: { tipo: 'ganho' | 'perda'; s: Sequencia | null }) {
 interface Props {
   resumo: Resumo | null
   diario: Diario[]
+  /** Rótulo do destaque; no conjunto vira "Resultado conjunto". */
+  titulo?: string
 }
 
-export function KpiBoard({ resumo, diario }: Props) {
+export function KpiBoard({ resumo, diario, titulo = 'Resultado total' }: Props) {
   const total = useCountUp(resumo?.total_rs ?? 0)
 
   if (!resumo) {
@@ -98,7 +100,7 @@ export function KpiBoard({ resumo, diario }: Props) {
     <section className="kpis" aria-label="Resultados principais">
       <article className="kpi kpi--hero reveal" style={indice(0)}>
         <header className="kpi__topo">
-          <h3 className="label">Resultado total</h3>
+          <h3 className="label">{titulo}</h3>
         </header>
         <p className={`kpi__hero mono ${sinal(resumo.total_rs)}`}>{brl(total)}</p>
         <p className="kpi__sub">

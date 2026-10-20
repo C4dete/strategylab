@@ -56,6 +56,9 @@ export const api = {
   excluir: (id: string) => req<void>(`/api/strategies/${id}`, { method: 'DELETE' }),
   definirUltima: (id: string) => req<void>('/api/estado/ultima', json('PUT', { id })),
   backtest: (params: Params) => req<Resultado>('/api/backtest', json('POST', { params })),
+  /** Conjunto: o primeiro componente é a principal. */
+  portfolio: (componentes: { nome: string; params: Params }[]) => req<Resultado>('/api/portfolio', json('POST', { componentes })),
+  definirCorrelacionar: (id: string, ids: string[]) => req<{ ids: string[] }>('/api/estado/correlacionar', json('PUT', { id, ids })),
   dia: (data: string, ind?: { mm: number; bb: number; k: number }) =>
     req<DiaBarras>(`/api/dia/${data}${ind ? `?mm=${ind.mm}&bb=${ind.bb}&k=${ind.k}` : ''}`),
 }

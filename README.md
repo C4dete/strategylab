@@ -69,6 +69,11 @@ lab_grades/   grades (JSON) do laboratório · lab_resultados/ e lab_cache/ (ger
 base_conhecimento/   o sistema antigo e sua documentação — só leitura, referência
 ```
 
+## Correlacionar (resultado conjunto)
+
+No painel esquerdo, abaixo da lista de estratégias, **Correlacionar** permite marcar quantas estratégias quiser para somar à selecionada: os blocos de resultado, o Panorama diário, o Resultado por mês e as Operações do dia passam a mostrar o **conjunto**,
+com um painel "Desempenho por estratégia" e o filtro "Por estratégia" no mês. É a soma de backtests independentes (sem netting entre as estratégias); detalhes em [docs/decisoes.md](docs/decisoes.md).
+
 ## Estratégias
 
 Cada estratégia é `estrategias/<id>.json` (`schema`, `id`, `name`, `params`). O `id` nasce do nome e **não muda ao renomear**.

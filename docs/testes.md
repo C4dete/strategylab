@@ -89,3 +89,19 @@ Os logs de cada processo ficam em `lab_cache/_testes/`. Os pesos usados para div
 - `PYTHONIOENCODING=utf-8` nos filhos (os acentos de "TODOS IDÊNTICOS" quebravam a comparação no Windows).
 - Duas baterias ao mesmo tempo no PC deixaram testes de 9 s com 170 s: as medições "rápidas" com processos antigos vivos ficaram inválidas. Sempre confirme que não sobrou processo (`Get-Process python*`).
 - Corte aplicado em 13/10 (decisão do Ricardo): oráculo/âncoras/look-ahead no BD real rodam só nos cenários afetados (+ canários) fora do `completo`. O `completo` continua rodando tudo antes de entregas grandes.
+
+## Portão automático (git) e conjunto
+
+- **Hooks versionados** em `.githooks/` (ativar uma vez por clone: `git config core.hooksPath .githooks`):
+  - `pre-commit`: **trava de hold-out/segredos** (recusa `dados/`, `base_conhecimento/`, `*.csv`, `*.pkl`, `WINM26*`, `.env`); se o backend mudou, roda `testes.py fronteira` (~20 s de testes, ~45 s com a partida); se o frontend mudou, lint + `tsc -b` + vitest (~17 s).
+  - `pre-push`: só se o **motor** (`backend/strategylab/engine/`) mudou, roda `testes.py parametro` (~5 min).
+  - Contorno consciente (só quando o Ricardo pedir): `--no-verify`.
+- **Conjunto ("Correlacionar")** — `backend/tests/test_portfolio.py`: um componente ≡ backtest; soma de R$/ops/dias; `rs_por` soma o dia e o mês; drawdown do conjunto recalculado de forma independente; correlação (consigo = 1, constante = nula, simétrica);
+  ordem das não-principais não muda os totais; resultado de entrada não é mutado (o cache da API guarda esses dicionários); API (formato, limites 1–12, memória da seleção, exclusão); BD real (lento): dois cenários das âncoras somam as âncoras. Este último é **canário** do perfil `regra`.
+- **Perfil usado** quando só a montagem do resultado muda (o motor de trades, não): `regra --afeta laboratorio` (~4 min no relógio) + testes novos; sem `completo`. Prova de que o motor não mudou: `git diff` vazio em `ghost.py`, `fills.py`, `params.py`.
+- **Interface:** sem teste de componente (não há testing-library); a lógica pura vai para o vitest (`identidade.test.ts`) e o resto é conferido no navegador (claro/escuro, 375/768/1440, teclado, console). Uma instância isolada de verificação (`strategylab-verif`, porta 8766, em `.claude/launch.json`) evita mexer no servidor do Ricardo.
+  Antes de clicar no Correlacionar durante a verificação, faça backup de `estrategias/_estado.json` (a seleção grava ali) e restaure no fim.
+
+### Próximos passos (não feitos)
+Cenários-ouro conferidos pelo Ricardo (fichas em `lab_resultados/ouro_fichas/`), testes de propriedade (hypothesis), mutação periódica (mutmut), Playwright (3 fluxos) e diff de trades nas âncoras.
+

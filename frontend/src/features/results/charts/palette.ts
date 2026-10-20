@@ -14,6 +14,9 @@ export interface Paleta {
   loss: string
   gainWeak: string
   lossWeak: string
+  /** Cor de cada estratégia do conjunto (A, B, C…), na ordem. */
+  estrategia: string[]
+  neutroBarra: string
 }
 
 function ler(): Paleta {
@@ -23,6 +26,7 @@ function ler(): Paleta {
     text: v('--text'), text2: v('--text-2'), text3: v('--text-3'), line: v('--line'), lineStrong: v('--line-strong'),
     surface: v('--surface'), surface3: v('--surface-3'), accent: v('--accent'), gain: v('--gain'), loss: v('--loss'),
     gainWeak: v('--gain-weak'), lossWeak: v('--loss-weak'),
+    estrategia: [1, 2, 3, 4, 5, 6].map((n) => v(`--e${n}`)), neutroBarra: v('--neutro-barra'),
   }
 }
 

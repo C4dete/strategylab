@@ -135,3 +135,19 @@ Pedido: entender a campeã antiga para criar algo novo (não reproduzi-la). Deta
   Decisão nossa: com a escada ligada o inicial precisa estar entre o mínimo e o máximo (o antigo cortava em silêncio).
 - **Painel:** nova seção **03 Reversão e contratos** com todos os controles de reversão (quantidade, stop e alvo da reversão) mais a escada. Indicadores passou a 04 e Filtros a 05. O resto da seção 02 ficou como estava.
 
+## 20/10 — Meses sem operação e "Correlacionar" (resultado conjunto)
+
+- **Meses sem operação:** o `mensal` agora traz **todos os meses que o BD cobre**; o que não teve operação vem zerado e com `operado: false`, e o gráfico "Resultado por mês" mostra uma barra baixa e cinza com o mesmo tooltip (zerado).
+  Os totais não mudam (só entram linhas zeradas). Vale só para meses, não para dias.
+- **Correlacionar:** marque quantas estratégias quiser (lista no painel esquerdo, abaixo das estratégias) para somar à **principal** (a selecionada). O servidor (`POST /api/portfolio`, `engine/portfolio.py`) soma, **pregão a pregão, backtests independentes**:
+  cada estratégia roda como se estivesse sozinha (limites e custo cheio próprios). Os números do conjunto (drawdown, sequências, melhor/pior dia, mensal) saem das mesmas funções do backtest sobre o diário somado;
+  um conjunto de **uma** estratégia é idêntico ao backtest, e dois cenários das âncoras somam as âncoras (R$ 7.391 + (−2.071) = 5.320), em teste.
+- **Fidelidade (importante):** o backtest **não** modela netting nem margem compartilhada. Na conta real, uma compra de A e uma venda de B no mesmo ativo se compensam. O conjunto serve para ver complementaridade, não para dimensionar risco da conta.
+- **Correlação** exibida: Pearson do R$ diário de cada estratégia contra a principal (A), sobre **todos os pregões do BD** (zero onde não operou); `—` quando indefinida. O painel também compara o drawdown do conjunto com a soma dos drawdowns isolados.
+- **Memória:** a lista marcada é lembrada **por estratégia** em `estrategias/_estado.json` (`correlacionar`), inclusive vazia: se desmarcou tudo, na próxima vez a estratégia abre sem correlacionadas. Excluir uma estratégia a remove das listas.
+  Cada correlacionada entra com a **versão salva**; a principal usa o rascunho da tela.
+- **Identidade visual:** selo (letra A, B, C… — A é sempre a principal) + cor (`--e1…--e6` em `styles/tokens.css`, só tons quentes/neutros; verde/vermelho seguem exclusivos de ganho/perda). A cor nunca é o único sinal.
+  Paleta validada por contraste (≥ 3:1 nos dois temas) e por separação sob protanopia/deuteranopia/tritanopia (ΔE ≥ 12). Acima de 6 estratégias as cores repetem (selo tracejado) e a letra segue única. Limite: 12 estratégias no conjunto.
+- **Operações do dia no conjunto:** candles compartilhados, entrada na cor/letra da estratégia, saída com contorno da estratégia e preenchimento gain/loss; chips por estratégia filtram gráfico e tabela; a tabela vem em seções por estratégia.
+  Indicadores (MM/Bollinger), janela e candle de referência no gráfico são da principal (A).
+

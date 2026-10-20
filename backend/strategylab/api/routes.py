@@ -10,7 +10,8 @@ from starlette.concurrency import run_in_threadpool
 
 from ..engine import data as dados
 from ..engine.params import EXECUCAO, Params, params_padrao
-from ..engine.runner import executar
+from ..engine.portfolio import combinar
+from ..engine.runner import executar, meses_do_bd
 from ..services.dataset import BD
 from ..services.strategies import Estrategia, EstrategiaErro
 from . import schemas as s
@@ -66,6 +67,7 @@ def meta():
             "filtro_inclinacao_barras", "filtro_inclinacao_max_x_media", "filtro_candle_discrepante_x", "trailing_inicio_r",
             "escada_contratos", "escada_ganho_qtd", "escada_perda_qtd", "escada_min", "escada_max")},
         "padrao": params_padrao().model_dump(),
+        "capacidades": {"correlacao": True},          # a interface detecta servidor antigo por aqui
     }
 
 
@@ -108,7 +110,8 @@ def listar(request: Request):
     ultima = store.ultima()
     if ultima not in {e.id for e in itens}:
         ultima = next((e.id for e in itens if e.valida), None)
-    return s.ListaEstrategias(estrategias=[_estr_out(e) for e in itens], ultima=ultima)
+    return s.ListaEstrategias(estrategias=[_estr_out(e) for e in itens], ultima=ultima,
+                              correlacionar=store.correlacionar())
 
 
 @router.post("/strategies", response_model=s.EstrategiaOut, status_code=201)
@@ -143,6 +146,14 @@ def excluir(request: Request, id_: str):
         raise _erro(exc) from exc
 
 
+@router.put("/estado/correlacionar")
+def definir_correlacionar(request: Request, corpo: s.Correlacionar):
+    try:
+        return {"ids": request.app.state.estrategias.definir_correlacionar(corpo.id, corpo.ids)}
+    except EstrategiaErro as exc:
+        raise _erro(exc) from exc
+
+
 @router.put("/estado/ultima", status_code=204)
 def definir_ultima(request: Request, corpo: s.Ultima):
     try:
@@ -152,25 +163,56 @@ def definir_ultima(request: Request, corpo: s.Ultima):
 
 
 # ----------------------------------------------------------------------------- backtest
-@router.post("/backtest")
-def backtest(request: Request, corpo: s.BacktestIn):
-    app = request.app.state
+def _bd_pronto(app):
     if not app.bd.aguardar():
         raise HTTPException(503, "O BD ainda está carregando. Tente de novo em instantes.")
     bd = app.bd.ativo()
     if bd is None:
         raise HTTPException(503, app.bd.erro or "Nenhum BD disponível.")
-    chave = (bd.id, corpo.params.chave_motor())
+    return bd
+
+
+def _resultado(app, bd, params: Params) -> tuple[dict, bool]:
+    """Backtest de uma estratégia, com cache por (BD, parâmetros do motor). Devolve (resultado, veio_do_cache)."""
+    chave = (bd.id, params.chave_motor())
     res = app.cache.obter(chave)
-    em_cache = res is not None
-    if res is None:
-        with app.lock_execucao:                       # uma execução pesada por vez
-            res = app.cache.obter(chave)
-            if res is None:
-                res = executar(bd.barras, corpo.params, bd.sub_min, bd.mercado())
-                app.cache.guardar(chave, res)
+    if res is not None:
+        return res, True
+    with app.lock_execucao:                           # uma execução pesada por vez
+        res = app.cache.obter(chave)
+        if res is not None:
+            return res, True
+        res = executar(bd.barras, params, bd.sub_min, bd.mercado())
+        app.cache.guardar(chave, res)
+        return res, False
+
+
+@router.post("/backtest")
+def backtest(request: Request, corpo: s.BacktestIn):
+    app = request.app.state
+    bd = _bd_pronto(app)
+    res, em_cache = _resultado(app, bd, corpo.params)
     return {**res, "em_cache": em_cache, "bd": _bd_out(app.bd, bd).model_dump(),
             "params": corpo.params.model_dump()}
+
+
+@router.post("/portfolio")
+def portfolio(request: Request, corpo: s.PortfolioIn):
+    """Resultado conjunto: soma, pregão a pregão, de backtests independentes (ver `engine/portfolio.py`). A 1ª é a principal."""
+    app = request.app.state
+    bd = _bd_pronto(app)
+    componentes, tudo_em_cache = [], True
+    for c in corpo.componentes:
+        try:
+            res, em_cache = _resultado(app, bd, c.params)
+        except Exception as exc:                      # noqa: BLE001 - diz QUAL estratégia falhou
+            raise HTTPException(422, f"Não foi possível executar “{c.nome}”: {exc}") from exc
+        tudo_em_cache = tudo_em_cache and em_cache
+        componentes.append({"nome": c.nome, "res": res})
+    mercado = bd.mercado()
+    conj = combinar(componentes, datas_bd=list(mercado.feat), meses_bd=meses_do_bd(mercado))
+    return {**conj, "em_cache": tudo_em_cache, "bd": _bd_out(app.bd, bd).model_dump(),
+            "params": corpo.componentes[0].params.model_dump()}
 
 
 @router.get("/dia/{dia}")

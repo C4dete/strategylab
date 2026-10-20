@@ -4,13 +4,46 @@
     {
       "name": "strategylab",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "uvicorn", "strategylab.main:create_app", "--factory", "--app-dir", "backend", "--host", "127.0.0.1", "--port", "8765"],
+      "runtimeArgs": [
+        "-m",
+        "uvicorn",
+        "strategylab.main:create_app",
+        "--factory",
+        "--app-dir",
+        "backend",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8765"
+      ],
       "port": 8765
+    },
+    {
+      "name": "strategylab-verif",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "uvicorn",
+        "strategylab.main:create_app",
+        "--factory",
+        "--app-dir",
+        "backend",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8766"
+      ],
+      "port": 8766
     },
     {
       "name": "strategylab-web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "frontend",
+        "run",
+        "dev"
+      ],
       "port": 5173
     }
   ]

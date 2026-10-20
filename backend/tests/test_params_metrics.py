@@ -93,6 +93,25 @@ def test_resumo_mensal():
     m = metrics.resumo_mensal(d)
     assert list(m["mes"]) == ["2024-01", "2024-02"]
     assert list(m["rs"]) == [5, 20] and list(m["dias_positivos"]) == [1, 1]
+    assert list(m["operado"]) == [True, True]
+
+
+def test_resumo_mensal_acrescenta_os_meses_sem_operacao_sem_mudar_os_totais():
+    d = _diario([10, -5, 20])
+    d.loc[2, "data"] = date(2024, 3, 1)                       # janeiro e março operados; fevereiro, não
+    sem = metrics.resumo_mensal(d)
+    com = metrics.resumo_mensal(d, meses_bd=["2023-12", "2024-01", "2024-02", "2024-03", "2024-04"])
+    assert list(com["mes"]) == ["2023-12", "2024-01", "2024-02", "2024-03", "2024-04"]      # ordem cronológica, bordas incluídas
+    assert list(com["operado"]) == [False, True, False, True, False]
+    vazios = com[~com["operado"]]
+    assert (vazios[["rs", "pts", "dias", "dias_positivos"]] == 0).all().all()               # zerados
+    assert com["rs"].sum() == sem["rs"].sum() and com["dias"].sum() == sem["dias"].sum()   # os totais não mudam
+    pd.testing.assert_frame_equal(com[com["operado"]].reset_index(drop=True)[["mes", "rs", "dias"]], sem[["mes", "rs", "dias"]], check_dtype=False)
+
+
+def test_resumo_mensal_sem_nenhuma_operacao_lista_todos_os_meses_do_bd():
+    m = metrics.resumo_mensal(metrics.resumo_diario(metrics.trades_para_df([])), meses_bd=["2024-01", "2024-02"])
+    assert list(m["mes"]) == ["2024-01", "2024-02"] and not m["operado"].any()
 
 
 # ------------------------------------------------------------------ Etapa 2: indicadores e filtro

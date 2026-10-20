@@ -141,6 +141,36 @@ class EstrategiaStore:
             self.obter(id_)
             self._salva_estado(ultima=id_)
 
+    def correlacionar(self) -> dict:
+        """Mapa principal -> ids marcados em "Correlacionar", só com estratégias que existem e são válidas."""
+        bruto = self._estado().get("correlacionar")
+        if not isinstance(bruto, dict):
+            return {}
+        validas = {e.id for e in self.listar() if e.valida}
+        saida = {}
+        for principal, ids in bruto.items():
+            if principal not in validas or not isinstance(ids, list):
+                continue
+            vistos = [i for k, i in enumerate(ids) if isinstance(i, str) and i in validas and i != principal and i not in ids[:k]]
+            if vistos:
+                saida[principal] = vistos
+        return saida
+
+    def definir_correlacionar(self, id_: str, ids: List[str]) -> List[str]:
+        """Grava (em ordem, sem repetir) as correlacionadas da principal. Lista vazia apaga a marca: ao voltar, vem sem nenhuma."""
+        with self._lock:
+            self.obter(id_)
+            validas = {e.id for e in self.listar() if e.valida}
+            limpas: List[str] = []
+            for i in ids:
+                if i in validas and i != id_ and i not in limpas:
+                    limpas.append(i)
+            mapa = {k: v for k, v in (self._estado().get("correlacionar") or {}).items() if k != id_}
+            if limpas:
+                mapa[id_] = limpas
+            self._salva_estado(correlacionar=mapa)
+            return limpas
+
     def garantir_semente(self) -> None:
         """Cria a `inicial_default` UMA vez; se o usuário apagar, ela não volta."""
         with self._lock:
@@ -216,6 +246,10 @@ class EstrategiaStore:
         with self._lock:
             self.obter(id_)
             self._arquivo(id_).unlink()
+            mapa = (self._estado().get("correlacionar") or {})
+            if mapa:                                         # a estratégia some das listas de todas as outras
+                self._salva_estado(correlacionar={k: [i for i in v if i != id_] for k, v in mapa.items()
+                                                  if k != id_ and [i for i in v if i != id_]})
             if self.ultima() == id_:
                 restantes = [e.id for e in self.listar()]
                 self._salva_estado(ultima=restantes[0] if restantes else None)

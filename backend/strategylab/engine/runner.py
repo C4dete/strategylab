@@ -172,14 +172,14 @@ def _num(v) -> Optional[float]:
     return None if v is None or v != v else float(v)       # NaN -> null no JSON
 
 
-def executar(barras: Optional[pd.DataFrame], p: Params, sub_min: int, mercado: Optional[Mercado] = None) -> dict:
-    """Roda o backtest completo e devolve o resultado em tipos JSON."""
-    t0 = time.perf_counter()
-    trades = rodar_trades(barras, p, sub_min, mercado)
-    diario = resumo_diario(trades)
-    g = metricas_globais(diario)
-    mensal = resumo_mensal(diario)
+def meses_do_bd(mercado: Mercado) -> list:
+    """AAAA-MM de todos os meses que o BD cobre (`feat` tem todos os pregões do BD)."""
+    return sorted({str(d)[:7] for d in mercado.feat})
 
+
+def resumo_json(diario: pd.DataFrame) -> dict:
+    """Resumo (totais, drawdown, melhor/pior dia, sequências) de um diário. Usado pelo backtest e pelo conjunto."""
+    g = metricas_globais(diario)
     dd = g["drawdown"]
     seq = g["sequencias"]
 
@@ -190,7 +190,7 @@ def executar(barras: Optional[pd.DataFrame], p: Params, sub_min: int, mercado: O
     def _dia_rs(x):
         return None if x is None else {"data": _dia(x["data"]), "rs": x["rs"]}
 
-    resumo = {
+    return {
         "total_rs": g["total_rs"], "total_pts": g["total_pts"],
         "pregoes_operados": g["pregoes"], "operacoes": g["operacoes"],
         "ganhos": g["ganhos"], "perdas": g["perdas"], "zeradas": g["zeradas"],
@@ -202,6 +202,29 @@ def executar(barras: Optional[pd.DataFrame], p: Params, sub_min: int, mercado: O
         "seq_ganho": _seq(seq["ganho"]),
         "seq_perda": _seq(seq["perda"]),
     }
+
+
+def diario_json(diario: pd.DataFrame) -> list:
+    return [{"data": str(r.data), "rs": float(r.rs), "pts": float(r.pts),
+             "acumulado": float(r.acumulado), "operacoes": int(r.operacoes),
+             "ganhos": int(r.ganhos), "perdas": int(r.perdas)}
+            for r in diario.itertuples(index=False)]
+
+
+def mensal_json(mensal: pd.DataFrame) -> list:
+    return [{"mes": r.mes, "rs": float(r.rs), "pts": float(r.pts), "dias": int(r.dias),
+             "dias_positivos": int(r.dias_positivos), "operado": bool(r.operado)} for r in mensal.itertuples(index=False)]
+
+
+def executar(barras: Optional[pd.DataFrame], p: Params, sub_min: int, mercado: Optional[Mercado] = None) -> dict:
+    """Roda o backtest completo e devolve o resultado em tipos JSON."""
+    t0 = time.perf_counter()
+    if mercado is None:
+        mercado = preparar_mercado(barras, sub_min)
+    trades = rodar_trades(barras, p, sub_min, mercado)
+    diario = resumo_diario(trades)
+    mensal = resumo_mensal(diario, meses_bd=meses_do_bd(mercado))
+    resumo = resumo_json(diario)
 
     bar = EXECUCAO.timeframe_min
     ops = []
@@ -225,12 +248,8 @@ def executar(barras: Optional[pd.DataFrame], p: Params, sub_min: int, mercado: O
 
     return {
         "resumo": resumo,
-        "diario": [{"data": str(r.data), "rs": float(r.rs), "pts": float(r.pts),
-                    "acumulado": float(r.acumulado), "operacoes": int(r.operacoes),
-                    "ganhos": int(r.ganhos), "perdas": int(r.perdas)}
-                   for r in diario.itertuples(index=False)],
-        "mensal": [{"mes": r.mes, "rs": float(r.rs), "pts": float(r.pts), "dias": int(r.dias),
-                    "dias_positivos": int(r.dias_positivos)} for r in mensal.itertuples(index=False)],
+        "diario": diario_json(diario),
+        "mensal": mensal_json(mensal),
         "operacoes": ops,
         "tempo_ms": int((time.perf_counter() - t0) * 1000),
     }
